@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solucionario de hidráulica · Cálculo paso a paso</title>
+<meta name="description" content="Solucionario interactivo de hidráulica: tuberías en serie y paralelo, redes ramificadas, canales de Manning, energía específica y salto hidráulico. Desarrollo paso a paso, sin conexión.">
+<meta name="theme-color" content="#0E6A8A">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230E6A8A'/%3E%3Cpath d='M6 20c3-5 5-5 8 0s5 5 8 0 4-4 4-4' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<script>
+  // Resuelve el tema antes de pintar para evitar parpadeos.
+  (function () {
+    try {
+      var t = localStorage.getItem('hidraulica.tema');
+      if (t !== 'light' && t !== 'dark') {
+        t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.dataset.theme = t;
+      var m = document.querySelector('meta[name="theme-color"]');
+      if (m) m.setAttribute('content', t === 'dark' ? '#0A161C' : '#0E6A8A');
+    } catch (e) { /* sin almacenamiento: se usa el tema claro */ }
+  })();
+</script>
+<style>
+/* ============================================================
+   Tokens
+   ============================================================ */
+:root {
+  --bg: #F2F5F7;
+  --bg-blur: rgba(242, 245, 247, .86);
+  --surface: #FFFFFF;
+  --surface-2: #F7FAFB;
+  --ink: #0B2231;
+  --muted: #5B7180;
+  --line: #DFE7EC;
+  --line-strong: #C7D5DE;
+  --accent: #0E6A8A;
+  --accent-ink: #084C63;
+  --accent-soft: #E6F2F8;
+  --ok: #0B6B45;
+  --warn: #8A4A12;
+  --warn-soft: #FCF1E6;
+  --danger: #9B1C1C;
+  --grid: rgba(11, 34, 49, .035);
+  --shadow: 0 1px 2px rgba(11, 34, 49, .05), 0 20px 44px -34px rgba(11, 34, 49, .5);
+  --radius: 14px;
+  --sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  --top: 64px;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0A161C;
+  --bg-blur: rgba(10, 22, 28, .86);
+  --surface: #0F2029;
+  --surface-2: #142A35;
+  --ink: #E4EFF4;
+  --muted: #93AAB7;
+  --line: #1E3540;
+  --line-strong: #2C4A57;
+  --accent: #58C2E2;
+  --accent-ink: #9BDCF0;
+  --accent-soft: #123440;
+  --ok: #57D9A3;
+  --warn: #F0B076;
+  --warn-soft: #2A1F14;
+  --danger: #F08A8A;
+  --grid: rgba(228, 239, 244, .04);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 24px 48px -36px rgba(0, 0, 0, .9);
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Base
+   ============================================================ */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 15px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 520px at 12% -8%, var(--accent-soft), transparent 68%),
+    radial-gradient(700px 420px at 100% 0%, var(--warn-soft), transparent 62%);
+  opacity: .7;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(1200px 700px at 50% 0%, #000 30%, transparent 85%);
+  -webkit-mask-image: radial-gradient(1200px 700px at 50% 0%, #000 30%, transparent 85%);
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+::selection { background: var(--accent); color: #fff; }
+
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  z-index: 100;
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 8px;
+}
+.skip:focus { left: 12px; }
+
+/* ============================================================
+   Barra superior
+   ============================================================ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg-blur);
+  backdrop-filter: saturate(1.5) blur(14px);
+  -webkit-backdrop-filter: saturate(1.5) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-in {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: var(--top);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.brand { display: flex; align-items: center; gap: 11px; color: inherit; }
+.brand:hover { text-decoration: none; }
+.brand-mark {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--accent), var(--accent-ink));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.brand-mark svg { width: 21px; height: 21px; }
+.brand-txt { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-txt strong { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+.brand-txt span {
+  font-size: 11px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+.top-actions { display: flex; align-items: center; gap: 6px; }
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: .15s;
+}
+.icon-btn:hover { background: var(--surface); border-color: var(--line); color: var(--ink); }
+.icon-btn svg { width: 18px; height: 18px; }
+:root[data-theme="light"] .i-moon,
+:root[data-theme="dark"] .i-sun { display: none; }
+
+/* ============================================================
+   Pestañas
+   ============================================================ */
+.tabbar {
+  position: sticky;
+  top: var(--top);
+  z-index: 40;
+  background: var(--bg-blur);
+  backdrop-filter: saturate(1.5) blur(14px);
+  -webkit-backdrop-filter: saturate(1.5) blur(14px);
+  border-bottom: 1px solid var(--line);
+}
+.tabbar-in {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.tab {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 11px 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.tab span { font: 600 10.5px var(--mono); opacity: .6; }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tab[aria-selected="true"] span { opacity: 1; }
+
+/* ============================================================
+   Estructura
+   ============================================================ */
+main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 22px 20px 64px;
+  display: grid;
+  grid-template-columns: 356px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.form-panel {
+  position: sticky;
+  top: calc(var(--top) + 58px);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--top) - 78px);
+  overflow: hidden;
+}
+.form-body { overflow-y: auto; padding: 18px 18px 2px; }
+.form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.form-foot .hint { font-size: 11.5px; color: var(--muted); text-align: right; }
+
+.eyebrow {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+.panel-head h2 { font-size: 20px; font-weight: 650; letter-spacing: -.015em; }
+.lede { margin-top: 5px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+
+/* Campos */
+.fields { margin-top: 6px; }
+.group-t {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 18px 0 9px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.group-t::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.group-t:first-child { margin-top: 10px; }
+.field { display: grid; gap: 4px; margin-bottom: 10px; }
+.field label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.field .u { color: var(--muted); font: 500 10.5px var(--mono); }
+input, select {
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 500 13.5px var(--mono);
+  font-variant-numeric: tabular-nums;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+select { font-family: var(--sans); font-size: 13px; cursor: pointer; }
+input:hover, select:hover { border-color: var(--accent); }
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+input:invalid { border-color: var(--danger); }
+button:focus-visible, a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Botones */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: .15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.btn:active { transform: translateY(1px); }
+.btn svg { width: 15px; height: 15px; }
+.btn.ghost { background: transparent; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn.primary { color: #06222D; }
+.btn.primary:hover { filter: brightness(1.05); color: #fff; }
+:root[data-theme="dark"] .btn.primary:hover { color: #06222D; }
+
+/* ============================================================
+   Resultados
+   ============================================================ */
+.result-panel { overflow: hidden; }
+.result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface-2), transparent);
+}
+.result-head h2 { font-size: 21px; font-weight: 650; letter-spacing: -.02em; }
+.result-head .lede { max-width: 62ch; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 10px;
+  padding: 18px 22px 4px;
+}
+.kpi {
+  position: relative;
+  padding: 10px 12px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.kpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+}
+.kpi-l {
+  display: block;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+.kpi-v {
+  font: 650 18.5px var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  color: var(--ink);
+}
+.kpi-v i { font: 500 11px var(--sans); font-style: normal; color: var(--muted); margin-left: 2px; }
+
+.diag {
+  margin: 16px 22px 0;
+  padding: 12px 14px 12px 15px;
+  border: 1px solid color-mix(in srgb, var(--warn) 25%, transparent);
+  border-left: 3px solid var(--warn);
+  border-radius: 10px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+}
+.diag strong { display: block; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; }
+.diag ul { margin: 6px 0 0; padding-left: 18px; }
+.diag li { margin: 2px 0; }
+
+.steps { list-style: none; margin: 0; padding: 10px 22px 22px; counter-reset: s; }
+.step {
+  position: relative;
+  padding: 14px 0 14px 46px;
+  border-top: 1px dashed var(--line);
+}
+.step:first-child { border-top: 0; }
+.step-n {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 600 11px var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+.step.key .step-n { background: var(--accent); border-color: var(--accent); color: #fff; }
+:root[data-theme="dark"] .step.key .step-n { color: #06222D; }
+.step h3 { font-size: 14.5px; font-weight: 600; line-height: 1.4; }
+.formula {
+  margin-top: 3px;
+  font: italic 500 14px "Cambria Math", Cambria, Georgia, serif;
+  color: var(--muted);
+}
+.subst {
+  margin-top: 5px;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font: 400 12.5px/1.55 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.out {
+  margin-top: 6px;
+  font: 700 15px var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-ink);
+}
+.out span { font: 500 11.5px var(--sans); color: var(--muted); margin-left: 3px; }
+.out.txt { font: 600 13.5px var(--sans); color: var(--ink); }
+
+.theory { margin: 0 22px 22px; padding-top: 14px; border-top: 1px solid var(--line); }
+.theory summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.theory summary::-webkit-details-marker { display: none; }
+.theory summary::before { content: "＋"; font-weight: 500; }
+.theory[open] summary::before { content: "−"; }
+.theory p { margin-top: 8px; font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+
+.empty { padding: 64px 26px; text-align: center; }
+.empty-ico {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 12px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.empty-ico svg { width: 22px; height: 22px; }
+.empty h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.empty p { font-size: 13.5px; color: var(--muted); max-width: 46ch; margin: 0 auto; }
+
+/* ============================================================
+   Pie y avisos
+   ============================================================ */
+footer {
+  border-top: 1px solid var(--line);
+  background: var(--bg-blur);
+  padding: 26px 20px 34px;
+}
+.foot-in {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 40px;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.foot-in strong { display: block; color: var(--ink); font-size: 12.5px; font-weight: 600; margin-bottom: 3px; }
+.foot-in p { max-width: 58ch; line-height: 1.6; }
+.foot-links { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translate(-50%, 12px);
+  z-index: 90;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, .5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.print-only { display: none; }
+.print-data { display: none; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 960px) {
+  main { grid-template-columns: 1fr; padding: 16px 14px 48px; gap: 14px; }
+  .form-panel { position: static; max-height: none; }
+  .form-body { overflow: visible; }
+  .topbar { position: static; }
+  .tabbar { top: 0; }
+  .tabbar-in { padding: 0 10px; }
+  .result-head, .kpis, .steps, .diag, .theory { padding-left: 16px; padding-right: 16px; }
+  .diag, .theory { margin-left: 16px; margin-right: 16px; }
+  .kpis { padding-bottom: 2px; }
+  .topbar-in { height: 58px; padding: 0 14px; }
+  .brand-txt span { display: none; }
+  .tools .btn span { display: none; }
+  .tools .btn { padding: 0 10px; }
+}
+@media (max-width: 420px) {
+  .brand-txt strong { font-size: 13.5px; }
+  .kpis { grid-template-columns: 1fr; }
+  .step { padding-left: 0; padding-top: 44px; }
+  .step-n { top: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+  html { scroll-behavior: auto; }
+}
+
+/* ============================================================
+   Impresión: informe A4 limpio
+   ============================================================ */
+@media print {
+  @page { size: A4; margin: 15mm 14mm; }
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  body::before, body::after { display: none; }
+  .topbar, .tabbar, .form-panel, .no-print, footer, .toast, .tools { display: none !important; }
+  main { display: block; max-width: none; margin: 0; padding: 0; }
+  .panel { border: 0; border-radius: 0; box-shadow: none; background: #fff; }
+  .print-only { display: block !important; }
+  .print-data { display: table !important; width: 100%; border-collapse: collapse; margin: 0 0 10px; font-size: 9pt; }
+  .print-data th, .print-data td { padding: 2px 4px; border-bottom: 1px solid #DDD; text-align: left; }
+  .print-data th { width: 62%; font-weight: 500; color: #333; }
+  .print-data td { text-align: right; font-family: var(--mono); }
+  .print-meta {
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #999;
+    font-size: 8.5pt;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #444;
+  }
+  .result-head { padding: 0 0 10px; border-bottom: 2px solid #000; background: none; }
+  .result-head h2 { font-size: 16pt; }
+  .eyebrow { color: #000; }
+  .lede, .formula { color: #333; }
+  .kpis { padding: 12px 0 4px; gap: 6px; grid-template-columns: repeat(3, 1fr); }
+  .kpi { border: 1px solid #bbb; background: #fff; break-inside: avoid; padding: 6px 8px; }
+  .kpi::before { background: #000; }
+  .kpi-v { color: #000; font-size: 11pt; }
+  .step { border-top: 1px solid #ddd; break-inside: avoid; padding: 9px 0 9px 38px; }
+  .step-n { border-color: #999; color: #000; background: #fff; }
+  .step.key .step-n { background: #000; border-color: #000; color: #fff; }
+  .subst { background: #F4F4F4; border-color: #ddd; color: #000; font-size: 9pt; }
+  .out { color: #000; }
+  .steps, .kpis { padding-left: 0; padding-right: 0; }
+  .diag { margin: 10px 0 0; border: 1px solid #000; background: #fff; color: #000; }
+  .diag strong { color: #000; }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#tuberia-simple" aria-label="Inicio del solucionario">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round">
+          <path d="M3 15c2.4-4 4.2-4 6.6 0s4.2 4 6.6 0 3.6-3.2 4.8-3.2"/>
+          <path d="M3 9c2.4-4 4.2-4 6.6 0" opacity=".55"/>
+        </svg>
+      </span>
+      <span class="brand-txt">
+        <strong>Solucionario de hidráulica</strong>
+        <span>Cálculo paso a paso · SI</span>
+      </span>
+    </a>
+    <div class="top-actions">
+      <a class="icon-btn" id="repo-link" href="#" target="_blank" rel="noopener" title="Repositorio en GitHub" aria-label="Repositorio en GitHub">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      </a>
+      <button class="icon-btn" id="theme-btn" title="Cambiar tema" aria-label="Cambiar entre tema claro y oscuro">
+        <svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+        <svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.2A8.2 8.2 0 0 1 9.8 3.5 8.2 8.2 0 1 0 20.5 14.2Z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="tabbar">
+  <div class="tabbar-in" id="tabs" role="tablist" aria-label="Temas de hidráulica"></div>
+</div>
+
+<main id="main">
+  <aside class="panel form-panel" aria-label="Datos de entrada">
+    <div class="form-body" id="form"></div>
+    <div class="form-foot">
+      <button class="btn ghost" id="reset-btn" title="Volver a los valores de ejemplo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 4v4.5h4.5"/></svg>
+        Restablecer
+      </button>
+      <span class="hint">Se recalcula al escribir</span>
+    </div>
+  </aside>
+
+  <section class="panel result-panel" id="out" role="region" aria-label="Desarrollo y resultados" aria-live="polite"></section>
+</main>
+
+<footer>
+  <div class="foot-in">
+    <div>
+      <strong>Solucionario de hidráulica</strong>
+      <p>Herramienta docente de cálculo. Verifica siempre los resultados antes de usarlos en un proyecto real: las hipótesis de cada método se detallan en el desarrollo.</p>
+    </div>
+    <div>
+      <strong>Métodos y referencias</strong>
+      <p>Darcy–Weisbach · Swamee–Jain (1976) · Manning · Bélanger · Chow, <em>Open-Channel Hydraulics</em> (1959) · White, <em>Fluid Mechanics</em>.</p>
+    </div>
+    <div class="foot-links">
+      <a id="repo-link-2" href="#" target="_blank" rel="noopener">GitHub</a>
+      <a href="#tuberia-simple">Volver arriba</a>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================================================
+   1. Utilidades numéricas
+   ============================================================ */
+const PI = Math.PI;
+const sq = Math.sqrt;
+
+/** Formato único de la aplicación: 5 decimales, separador español. */
+function F(x) {
+  if (typeof x === 'string') return x;
+  if (!isFinite(x)) return '—';
+  const a = Math.abs(x);
+  if (x !== 0 && (a < 1e-4 || a >= 1e7)) {
+    return x.toExponential(5).replace('.', ',');
+  }
+  return x.toLocaleString('es-ES', {
+    minimumFractionDigits: 5,
+    maximumFractionDigits: 5
+  });
+}
+
+/** Unidad visible (el guion largo representa "sin dimensión"). */
+const U = u => (u && u !== '—') ? u : '';
+
+/** Paso del solucionario. */
+function S(t, fm, sub, val, u, key) {
+  return { t, fm, sub, val, u: u || '', key: !!key };
+}
+
+const MODS = [];
+
+/* ============================================================
+   2. Módulos de cálculo
+   ============================================================ */
+
+/* ---------- 1. Tubería simple ---------- */
+MODS.push({
+  slug: 'tuberia-simple',
+  name: '1. Tubería simple',
+  short: 'Tubería simple',
+  intro: 'Pérdida de carga en una conducción a presión con Darcy–Weisbach, factor de fricción de Swamee–Jain y pérdidas menores.',
+  theory: 'Hipótesis: régimen permanente, fluido incompresible, conducto lleno y sección constante. f se evalúa con la aproximación explícita de Swamee–Jain (1976) a Colebrook–White; en régimen laminar se aplica f = 64/Re. Rugosidades absolutas típicas: acero comercial 4,6·10⁻⁵ m · fundición 2,6·10⁻⁴ m · concreto 3,0·10⁻⁴ m · PVC 1,5·10⁻⁶ m.',
+  in: [
+    { k: 'Q', name: 'Caudal Q', unit: 'm³/s', def: 0.03 },
+    { k: 'D', name: 'Diámetro D', unit: 'm', def: 0.25 },
+    { k: 'L', name: 'Longitud L', unit: 'm', def: 120 },
+    { k: 'e', name: 'Rugosidad ε', unit: 'm', def: 0.000046 },
+    { k: 'nu', name: 'Viscosidad ν', unit: 'm²/s', def: 1e-6 },
+    { k: 'K', name: 'ΣK accesorios', unit: '—', def: 0 },
+    { k: 'rho', name: 'Densidad ρ', unit: 'kg/m³', def: 1000 },
+    { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 }
+  ],
+  solve(v) {
+    const { Q, D, L, e, nu, K, rho, g } = v;
+    const A = PI * D * D / 4;
+    const V = Q / A;
+    const hv = V * V / (2 * g);
+    const Re = V * D / nu;
+    const er = e / D;
+    const reg = Re < 2000 ? 'Laminar' : Re <= 4000 ? 'Transición' : 'Turbulento';
+    const f = Re < 2000 ? 64 / Re : 0.25 / Math.pow(Math.log10(er / 3.7 + 5.74 / Math.pow(Re, 0.9)), 2);
+    const hf = f * L / D * hv;
+    const hm = K * hv;
+    const hL = hf + hm;
+    const P = rho * g * Q * hL / 1000;
+
+    return [
+      S('Área de la sección', 'A = π·D² / 4', `A = π·(${F(D)})² / 4`, A, 'm²'),
+      S('Velocidad media', 'V = Q / A', `V = ${F(Q)} / ${F(A)}`, V, 'm/s', true),
+      S('Carga de velocidad', 'hv = V² / 2g', `hv = (${F(V)})² / (2·${F(g)})`, hv, 'm'),
+      S('Número de Reynolds', 'Re = V·D / ν', `Re = ${F(V)}·${F(D)} / ${F(nu)}`, Re, '—', true),
+      S('Régimen de flujo', 'Laminar < 2000 < Transición < 4000 < Turbulento', `Re = ${F(Re)}`, reg),
+      S('Rugosidad relativa', 'ε / D', `${F(e)} / ${F(D)}`, er, '—'),
+      S('Factor de fricción f',
+        Re < 2000 ? 'f = 64 / Re' : 'f = 0.25 / [log₁₀(ε/3.7D + 5.74/Re⁰·⁹)]²',
+        Re < 2000
+          ? `f = 64 / ${F(Re)}`
+          : `f = 0.25 / [log₁₀(${F(er / 3.7)} + ${F(5.74 / Math.pow(Re, 0.9))})]²`,
+        f, '—', true),
+      S('Pérdida por fricción', 'hf = f·(L/D)·hv', `hf = ${F(f)}·(${F(L)}/${F(D)})·${F(hv)}`, hf, 'm'),
+      S('Pérdidas menores', 'hm = ΣK·hv', `hm = ${F(K)}·${F(hv)}`, hm, 'm'),
+      S('Pérdida total', 'hL = hf + hm', `hL = ${F(hf)} + ${F(hm)}`, hL, 'm', true),
+      S('Resistencia equivalente', 'R = hL / Q²', `R = ${F(hL)} / (${F(Q)})²`, hL / (Q * Q), 's²/m⁵'),
+      S('Pendiente de energía', 'Sf = hL / L', `Sf = ${F(hL)} / ${F(L)}`, hL / L, 'm/m'),
+      S('Potencia hidráulica', 'P = ρ·g·Q·hL / 1000', `P = ${F(rho)}·${F(g)}·${F(Q)}·${F(hL)} / 1000`, P, 'kW', true)
+    ];
+  }
+});
+
+/* ---------- 2. Tuberías en serie ---------- */
+MODS.push({
+  slug: 'serie',
+  name: '2. Tuberías en serie',
+  short: 'Series',
+  intro: 'El caudal es el mismo en todos los tramos y las pérdidas se suman. Hasta cuatro tramos, cada uno con su longitud, diámetro y accesorios.',
+  theory: 'Cada tramo se reduce a una resistencia R = (f·L/D + ΣK) / (2g·A²), de modo que ΔH = R_total·Q². Es válido para flujo turbulento completamente desarrollado con f constante; en serie se desprecian las pérdidas por cambio de sección.',
+  in: (() => {
+    const rows = [
+      { k: 'modo', name: 'Dato conocido', def: 'H', options: [['H', 'ΔH conocido → calcular Q'], ['Q', 'Q conocido → calcular ΔH']] },
+      { k: 'dH', name: 'Desnivel ΔH', unit: 'm', def: 10 },
+      { k: 'Q', name: 'Caudal Q', unit: 'm³/s', def: 0.03 },
+      { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 }
+    ];
+    const defs = [[150, 0.2, 0.022, 0], [100, 0.15, 0.025, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+    defs.forEach((d, i) => {
+      const n = i + 1;
+      rows.push({ g: 'Tramo ' + n + (n > 2 ? ' · opcional' : '') });
+      rows.push({ k: 'L' + n, name: 'Longitud L', unit: 'm', def: d[0] });
+      rows.push({ k: 'D' + n, name: 'Diámetro D', unit: 'm', def: d[1] });
+      rows.push({ k: 'f' + n, name: 'Factor f', unit: '—', def: d[2] });
+      rows.push({ k: 'K' + n, name: 'ΣK accesorios', unit: '—', def: d[3] });
+    });
+    return rows;
+  })(),
+  solve(v) {
+    const g = v.g;
+    const st = [];
+    const tramos = [];
+    let Rt = 0;
+
+    for (let i = 1; i <= 4; i++) {
+      const L = v['L' + i], D = v['D' + i], f = v['f' + i], K = v['K' + i];
+      if (!(L > 0)) continue;
+      if (!(D > 0)) throw new Error('El diámetro del tramo ' + i + ' debe ser mayor que cero.');
+      const A = PI * D * D / 4;
+      const R = (f * L / D + K) / (2 * g) / (A * A);
+      Rt += R;
+      tramos.push({ i, L, D, f, K, A });
+      st.push(S(`Tramo ${i}: área`, 'A = π·D² / 4', `A = π·(${F(D)})² / 4`, A, 'm²'));
+      st.push(S(`Tramo ${i}: resistencia`, 'Rᵢ = (f·L/D + ΣK) / (2g·A²)',
+        `Rᵢ = (${F(f)}·${F(L)}/${F(D)} + ${F(K)}) / (2·${F(g)}·(${F(A)})²)`, R, 's²/m⁵'));
+    }
+    if (!tramos.length) throw new Error('Define al menos un tramo con L > 0.');
+
+    st.push(S('Resistencia total', 'R = ΣRᵢ', `R = ${F(Rt)}`, Rt, 's²/m⁵', true));
+
+    let Q, dH;
+    if (v.modo === 'H') {
+      dH = v.dH;
+      Q = sq(dH / Rt);
+      st.push(S('Caudal del sistema', 'Q = √(ΔH / R)', `Q = √(${F(dH)} / ${F(Rt)})`, Q, 'm³/s', true));
+      st.push(S('Caudal equivalente', 'Q·1000', `${F(Q)}·1000`, Q * 1000, 'L/s'));
+    } else {
+      Q = v.Q;
+      dH = Rt * Q * Q;
+      st.push(S('Pérdida total (desnivel)', 'ΔH = R·Q²', `ΔH = ${F(Rt)}·(${F(Q)})²`, dH, 'm', true));
+    }
+
+    let suma = 0;
+    tramos.forEach(t => {
+      const V = Q / t.A;
+      const hv = V * V / (2 * g);
+      const hf = t.f * t.L / t.D * hv;
+      const hm = t.K * hv;
+      suma += hf + hm;
+      st.push(S(`Tramo ${t.i}: velocidad y carga`, 'V = Q/A ;  hv = V²/2g',
+        `V = ${F(Q)}/${F(t.A)} = ${F(V)} m/s ;  hv = ${F(hv)} m`, V, 'm/s'));
+      st.push(S(`Tramo ${t.i}: pérdida`, 'hL = (f·L/D + ΣK)·hv',
+        `hf = ${F(hf)} m ;  hm = ${F(hm)} m`, hf + hm, 'm'));
+    });
+
+    st.push(S('Verificación', 'Σ hL = ΔH',
+      `Σ hL = ${F(suma)}  ·  ΔH = ${F(dH)}`,
+      Math.abs(suma - dH) < 1e-4 ? 'CUMPLE' : 'REVISAR'));
+    return st;
+  }
+});
+
+/* ---------- 3. Tuberías en paralelo ---------- */
+MODS.push({
+  slug: 'paralelo',
+  name: '3. Tuberías en paralelo',
+  short: 'Paralelo',
+  intro: 'El caudal total se reparte entre las ramas y la pérdida de carga es la misma en todas ellas.',
+  theory: 'Ramas en paralelo: hL es idéntica entre los nodos y los caudales se reparten según la conductancia C = 1/√K, con K = f·(L/D)/(2g)·(4/πD²)². Se desprecia la pérdida en los colectores y se supone f constante en cada rama.',
+  in: (() => {
+    const rows = [
+      { k: 'QT', name: 'Caudal total QT', unit: 'm³/s', def: 0.12 },
+      { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 }
+    ];
+    const defs = [[500, 0.25, 0.02], [800, 0.2, 0.022], [600, 0.15, 0.02]];
+    defs.forEach((d, i) => {
+      const n = i + 1;
+      rows.push({ g: 'Rama ' + n + (n === 3 ? ' · opcional' : '') });
+      rows.push({ k: 'L' + n, name: 'Longitud L', unit: 'm', def: d[0] });
+      rows.push({ k: 'D' + n, name: 'Diámetro D', unit: 'm', def: d[1] });
+      rows.push({ k: 'f' + n, name: 'Factor f', unit: '—', def: d[2] });
+    });
+    return rows;
+  })(),
+  solve(v) {
+    const QT = v.QT, g = v.g;
+    const st = [];
+    const ramas = [];
+    let SC = 0;
+
+    for (let i = 1; i <= 3; i++) {
+      const L = v['L' + i], D = v['D' + i], f = v['f' + i];
+      if (!(L > 0)) continue;
+      if (!(D > 0)) throw new Error('El diámetro de la rama ' + i + ' debe ser mayor que cero.');
+      const A = PI * D * D / 4;
+      const K = f * (L / D) / (2 * g) * Math.pow(4 / (PI * D * D), 2);
+      const C = 1 / sq(K);
+      SC += C;
+      ramas.push({ i, A, K, C });
+      st.push(S(`Rama ${i}: área`, 'A = π·D² / 4', `A = π·(${F(D)})² / 4`, A, 'm²'));
+      st.push(S(`Rama ${i}: constante K`, 'K = f·(L/D)·(1/2g)·(4/πD²)²',
+        `K = ${F(f)}·(${F(L)}/${F(D)})·(1/(2·${F(g)}))·(4/(π·${F(D)}²))²`, K, 's²/m⁵'));
+      st.push(S(`Rama ${i}: conductancia`, 'C = 1 / √K', `C = 1 / √${F(K)}`, C, '—'));
+    }
+    if (!ramas.length) throw new Error('Define al menos una rama con L > 0.');
+
+    st.push(S('Suma de conductancias', 'ΣC = C₁ + C₂ + …', `ΣC = ${F(SC)}`, SC, '—', true));
+
+    let suma = 0;
+    ramas.forEach(r => {
+      const Q = QT * r.C / SC;
+      const V = Q / r.A;
+      const hf = r.K * Q * Q;
+      suma += Q;
+      st.push(S(`Rama ${r.i}: caudal`, 'Qᵢ = QT·Cᵢ / ΣC', `Q = ${F(QT)}·${F(r.C)} / ${F(SC)}`, Q, 'm³/s', true));
+      st.push(S(`Rama ${r.i}: velocidad`, 'V = Q / A', `V = ${F(Q)} / ${F(r.A)}`, V, 'm/s'));
+      st.push(S(`Rama ${r.i}: pérdida común`, 'hf = K·Q²', `hf = ${F(r.K)}·(${F(Q)})²`, hf, 'm'));
+    });
+
+    st.push(S('Continuidad', 'ΣQᵢ = QT', `ΣQᵢ = ${F(suma)}  ·  QT = ${F(QT)}`,
+      Math.abs(suma - QT) < 1e-4 ? 'CUMPLE' : 'REVISAR'));
+    return st;
+  }
+});
+
+/* ---------- 4. Redes ramificadas ---------- */
+MODS.push({
+  slug: 'ramificada',
+  name: '4. Redes ramificadas',
+  short: 'Ramificadas',
+  intro: 'Nodo común que alimenta tres ramales hacia puntos de cota conocida. La continuidad exige Qin = Qa + Qb + Qc.',
+  theory: 'Red ramificada con cota piezométrica del nodo desconocida. Cada ramal cumple Qi = √((HN − Hi)/Ki) y la continuidad Qin = ΣQi. HN se obtiene por bisección; si el nodo queda por debajo de la cota de un ramal, ese ramal no aporta caudal.',
+  in: (() => {
+    const rows = [
+      { k: 'Qin', name: 'Caudal entrante Qin', unit: 'm³/s', def: 0.18 },
+      { k: 'modo', name: 'Cota del nodo', def: 'auto', options: [['auto', 'Calcular HN (equilibrio)'], ['man', 'Usar HN impuesta']] },
+      { k: 'HN', name: 'HN impuesta', unit: 'm', def: 125 },
+      { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 },
+      { k: 'HA', name: 'Cota del punto A', unit: 'm', def: 110 },
+      { k: 'HB', name: 'Cota del punto B', unit: 'm', def: 105 },
+      { k: 'HC', name: 'Cota del punto C', unit: 'm', def: 100 }
+    ];
+    const defs = [['A', 600, 0.25, 0.02], ['B', 800, 0.2, 0.022], ['C', 500, 0.2, 0.022]];
+    defs.forEach(r => {
+      rows.push({ g: 'Ramal ' + r[0] });
+      rows.push({ k: 'L' + r[0], name: 'Longitud L', unit: 'm', def: r[1] });
+      rows.push({ k: 'D' + r[0], name: 'Diámetro D', unit: 'm', def: r[2] });
+      rows.push({ k: 'f' + r[0], name: 'Factor f', unit: '—', def: r[3] });
+    });
+    return rows;
+  })(),
+  solve(v) {
+    const g = v.g;
+    const st = [];
+    const ks = {};
+    const H = { A: v.HA, B: v.HB, C: v.HC };
+
+    ['A', 'B', 'C'].forEach(r => {
+      const L = v['L' + r], D = v['D' + r], f = v['f' + r];
+      if (!(D > 0)) throw new Error('El diámetro del ramal ' + r + ' debe ser mayor que cero.');
+      ks[r] = f * (L / D) / (2 * g) * Math.pow(4 / (PI * D * D), 2);
+      st.push(S(`Ramal ${r}: constante K`, 'K = f·(L/D)·(1/2g)·(4/πD²)²',
+        `K = ${F(f)}·(${F(L)}/${F(D)})·(1/(2·${F(g)}))·(4/(π·${F(D)}²))²`, ks[r], 's²/m⁵'));
+    });
+
+    const Qf = HN => ['A', 'B', 'C'].reduce((s, r) => s + (HN > H[r] ? sq((HN - H[r]) / ks[r]) : 0), 0);
+    let HN = v.HN;
+
+    if (v.modo === 'auto') {
+      let lo = Math.min(H.A, H.B, H.C);
+      let hi = lo + 1e5;
+      for (let i = 0; i < 200; i++) {
+        const m = (lo + hi) / 2;
+        if (Qf(m) < v.Qin) lo = m; else hi = m;
+      }
+      HN = (lo + hi) / 2;
+      st.push(S('Cota piezométrica del nodo', 'Resolver Qa + Qb + Qc = Qin (bisección)',
+        `Qin = ${F(v.Qin)}`, HN, 'm', true));
+    }
+
+    let tot = 0;
+    ['A', 'B', 'C'].forEach(r => {
+      const hL = HN - H[r];
+      const Q = hL > 0 ? sq(hL / ks[r]) : 0;
+      tot += Q;
+      st.push(S(`Ramal ${r}: pérdida disponible`, 'hL = HN − Hi', `hL = ${F(HN)} − ${F(H[r])}`, hL, 'm'));
+      st.push(S(`Ramal ${r}: caudal`, 'Q = √(hL / K)', `Q = √(${F(hL)} / ${F(ks[r])})`, Q, 'm³/s', true));
+    });
+
+    st.push(S('Caudal saliente', 'Qout = Qa + Qb + Qc', `Qout = ${F(tot)}`, tot, 'm³/s'));
+    st.push(S('Diferencia en el nodo', 'ΔQ = Qin − Qout', `ΔQ = ${F(v.Qin)} − ${F(tot)}`, v.Qin - tot, 'm³/s'));
+    st.push(S('Equilibrio', '|ΔQ| < 0,001', `|ΔQ| = ${F(Math.abs(v.Qin - tot))}`,
+      Math.abs(v.Qin - tot) < 0.001 ? 'EQUILIBRIO EN EL NODO' : 'AJUSTAR HN'));
+    return st;
+  }
+});
+
+/* ---------- 5. Canal de Manning ---------- */
+MODS.push({
+  slug: 'manning',
+  name: '5. Canal de Manning',
+  short: 'Manning',
+  intro: 'Flujo permanente y uniforme en un canal trapezoidal: geometría, caudal, régimen y esfuerzo cortante de fondo.',
+  theory: 'Manning para flujo uniforme: Q = (1/n)·A·R^(2/3)·√So, con n en s/m^(1/3). El régimen se clasifica con el número de Froude basado en la profundidad hidráulica Dm = A/T. El esfuerzo cortante de fondo es τ₀ = γ·R·So.',
+  in: [
+    { k: 'b', name: 'Ancho de solera b', unit: 'm', def: 3 },
+    { k: 'z', name: 'Talud z (zH : 1V)', unit: '—', def: 1.5 },
+    { k: 'y', name: 'Tirante y', unit: 'm', def: 2.48 },
+    { k: 'n', name: 'Rugosidad n', unit: 's/m⅓', def: 0.025 },
+    { k: 'S', name: 'Pendiente So', unit: 'm/m', def: 0.0009 },
+    { k: 'gam', name: 'Peso específico γ', unit: 'N/m³', def: 9810 },
+    { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 }
+  ],
+  solve(v) {
+    const { b, z, y, n, S: So, gam, g } = v;
+    const A = y * (b + z * y);
+    const P = b + 2 * y * sq(1 + z * z);
+    const R = A / P;
+    const T = b + 2 * z * y;
+    const Dm = A / T;
+    const Q = (1 / n) * A * Math.pow(R, 2 / 3) * sq(So);
+    const V = Q / A;
+    const Fr = V / sq(g * Dm);
+    const reg = Math.abs(Fr - 1) < 0.01 ? 'CRÍTICO' : Fr < 1 ? 'SUBCRÍTICO' : 'SUPERCRÍTICO';
+
+    return [
+      S('Área mojada', 'A = y·(b + z·y)', `A = ${F(y)}·(${F(b)} + ${F(z)}·${F(y)})`, A, 'm²'),
+      S('Perímetro mojado', 'P = b + 2y·√(1 + z²)', `P = ${F(b)} + 2·${F(y)}·√(1 + ${F(z)}²)`, P, 'm'),
+      S('Radio hidráulico', 'R = A / P', `R = ${F(A)} / ${F(P)}`, R, 'm'),
+      S('Espejo de agua', 'T = b + 2·z·y', `T = ${F(b)} + 2·${F(z)}·${F(y)}`, T, 'm'),
+      S('Profundidad hidráulica', 'Dm = A / T', `Dm = ${F(A)} / ${F(T)}`, Dm, 'm'),
+      S('Caudal (Manning)', 'Q = (1/n)·A·R^(2/3)·√So',
+        `Q = (1/${F(n)})·${F(A)}·${F(R)}^(2/3)·√${F(So)}`, Q, 'm³/s', true),
+      S('Velocidad media', 'V = Q / A', `V = ${F(Q)} / ${F(A)}`, V, 'm/s', true),
+      S('Carga de velocidad', 'V² / 2g', `(${F(V)})² / (2·${F(g)})`, V * V / (2 * g), 'm'),
+      S('Número de Froude', 'Fr = V / √(g·Dm)', `Fr = ${F(V)} / √(${F(g)}·${F(Dm)})`, Fr, '—', true),
+      S('Régimen', 'Fr < 1 subcrítico · Fr = 1 crítico · Fr > 1 supercrítico', `Fr = ${F(Fr)}`, reg),
+      S('Esfuerzo cortante de fondo', 'τ₀ = γ·R·So', `τ₀ = ${F(gam)}·${F(R)}·${F(So)}`, gam * R * So, 'N/m²')
+    ];
+  }
+});
+
+/* ---------- 6. Energía específica y grada ---------- */
+MODS.push({
+  slug: 'energia',
+  name: '6. Energía específica y grada',
+  short: 'Energía específica',
+  intro: 'Canal rectangular: estado crítico y efecto de un estrangulamiento (grada) sobre el nivel de agua.',
+  theory: 'Canal rectangular. La energía específica es E = y + αV²/2g; para un caudal unitario q el estado crítico cumple yc = (αq²/g)^(1/3) y Emin = 1,5·yc. Una grada reduce la energía disponible: si E₁ − Δz < Emin se produce estrangulamiento y el nivel aguas arriba asciende.',
+  in: [
+    { k: 'Q', name: 'Caudal Q', unit: 'm³/s', def: 9 },
+    { k: 'b', name: 'Ancho b', unit: 'm', def: 3 },
+    { k: 'y1', name: 'Tirante aguas arriba y₁', unit: 'm', def: 1.2 },
+    { k: 'dz', name: 'Elevación de la grada Δz', unit: 'm', def: 0.06 },
+    { k: 'al', name: 'Coeficiente α', unit: '—', def: 1 },
+    { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 }
+  ],
+  solve(v) {
+    const { Q, b, y1, dz, al, g } = v;
+    const q = Q / b;
+    const A1 = b * y1;
+    const V1 = Q / A1;
+    const hv = al * V1 * V1 / (2 * g);
+    const E1 = y1 + hv;
+    const Fr = V1 / sq(g * y1);
+    const yc = Math.pow(al * q * q / g, 1 / 3);
+    const Vc = sq(g * yc);
+    const Em = 1.5 * yc;
+    const dzm = E1 - Em;
+    const Ec = E1 - dz;
+    const mar = Ec - Em;
+
+    return [
+      S('Caudal unitario', 'q = Q / b', `q = ${F(Q)} / ${F(b)}`, q, 'm²/s'),
+      S('Área en la sección 1', 'A₁ = b·y₁', `A₁ = ${F(b)}·${F(y1)}`, A1, 'm²'),
+      S('Velocidad en la sección 1', 'V₁ = Q / A₁', `V₁ = ${F(Q)} / ${F(A1)}`, V1, 'm/s'),
+      S('Carga de velocidad', 'hv₁ = α·V₁² / 2g', `hv₁ = ${F(al)}·(${F(V1)})² / (2·${F(g)})`, hv, 'm'),
+      S('Energía específica aguas arriba', 'E₁ = y₁ + hv₁', `E₁ = ${F(y1)} + ${F(hv)}`, E1, 'm', true),
+      S('Número de Froude', 'Fr₁ = V₁ / √(g·y₁)', `Fr₁ = ${F(V1)} / √(${F(g)}·${F(y1)})`, Fr, '—', true),
+      S('Régimen aguas arriba', 'Fr < 1 subcrítico · Fr > 1 supercrítico', `Fr₁ = ${F(Fr)}`,
+        Fr < 1 ? 'SUBCRÍTICO' : 'SUPERCRÍTICO'),
+      S('Tirante crítico', 'yc = (α·q² / g)^(1/3)', `yc = (${F(al)}·${F(q)}² / ${F(g)})^(1/3)`, yc, 'm', true),
+      S('Velocidad crítica', 'Vc = √(g·yc)', `Vc = √(${F(g)}·${F(yc)})`, Vc, 'm/s'),
+      S('Energía mínima', 'Emin = 1,5·yc', `Emin = 1,5·${F(yc)}`, Em, 'm'),
+      S('Elevación máxima sin ahogamiento', 'Δz máx = E₁ − Emin', `Δz máx = ${F(E1)} − ${F(Em)}`, dzm, 'm', true),
+      S('Energía en la cresta', 'E cresta = E₁ − Δz', `E cresta = ${F(E1)} − ${F(dz)}`, Ec, 'm'),
+      S('Margen sobre el estado crítico', 'E cresta − Emin', `${F(Ec)} − ${F(Em)}`, mar, 'm'),
+      S('Diagnóstico', 'Si E cresta ≥ Emin el flujo pasa libremente', `E cresta = ${F(Ec)} · Emin = ${F(Em)}`,
+        Ec >= Em ? 'PASA LIBREMENTE (sin estrangulamiento)' : 'ESTRANGULAMIENTO: el nivel aguas arriba subirá')
+    ];
+  }
+});
+
+/* ---------- 7. Salto hidráulico ---------- */
+MODS.push({
+  slug: 'salto',
+  name: '7. Salto hidráulico',
+  short: 'Salto hidráulico',
+  intro: 'Canal rectangular: tirante conjugado, energía disipada, longitud del salto y control con el tirante de cola.',
+  theory: 'Salto hidráulico en canal rectangular. El conjugado mayor se obtiene de la ecuación de momentum (Bélanger): y₂ = (y₁/2)(√(1+8Fr₁²) − 1). La pérdida es ΔE = (y₂−y₁)³/(4y₁y₂) y la potencia disipada, ρgQΔE. La longitud se estima entre 5 y 8 veces el cambio de tirante según el tipo de salto.',
+  in: [
+    { k: 'Q', name: 'Caudal Q', unit: 'm³/s', def: 5 },
+    { k: 'b', name: 'Ancho b', unit: 'm', def: 3 },
+    { k: 'y1', name: 'Tirante antes del salto y₁', unit: 'm', def: 0.3 },
+    { k: 'yt', name: 'Tirante de cola yTW', unit: 'm', def: 1.25 },
+    { k: 'rho', name: 'Densidad ρ', unit: 'kg/m³', def: 1000 },
+    { k: 'g', name: 'Gravedad g', unit: 'm/s²', def: 9.81 }
+  ],
+  solve(v) {
+    const { Q, b, y1, yt, rho, g } = v;
+    const q = Q / b;
+    const V1 = q / y1;
+    const hv = V1 * V1 / (2 * g);
+    const E1 = y1 + hv;
+    const Fr = V1 / sq(g * y1);
+    const y2 = 0.5 * y1 * (sq(1 + 8 * Fr * Fr) - 1);
+    const V2 = q / y2;
+    const Fr2 = V2 / sq(g * y2);
+    const E2 = y2 + V2 * V2 / (2 * g);
+    const dE = Math.pow(y2 - y1, 3) / (4 * y1 * y2);
+    const P = rho * g * Q * dE / 1000;
+    const tipo = Fr < 1.7 ? 'Ondulatorio' : Fr < 2.5 ? 'Débil' : Fr < 4.5 ? 'Oscilante / inestable' : Fr < 9 ? 'Estable / óptimo' : 'Fuerte';
+
+    return [
+      S('Caudal unitario', 'q = Q / b', `q = ${F(Q)} / ${F(b)}`, q, 'm²/s'),
+      S('Velocidad antes del salto', 'V₁ = q / y₁', `V₁ = ${F(q)} / ${F(y1)}`, V1, 'm/s'),
+      S('Carga de velocidad', 'hv₁ = V₁² / 2g', `hv₁ = (${F(V1)})² / (2·${F(g)})`, hv, 'm'),
+      S('Energía específica antes', 'E₁ = y₁ + hv₁', `E₁ = ${F(y1)} + ${F(hv)}`, E1, 'm'),
+      S('Número de Froude inicial', 'Fr₁ = V₁ / √(g·y₁)', `Fr₁ = ${F(V1)} / √(${F(g)}·${F(y1)})`, Fr, '—', true),
+      S('Condición de salto', 'Fr₁ > 1', `Fr₁ = ${F(Fr)}`,
+        Fr > 1 ? 'CONSISTENTE (flujo supercrítico)' : 'ERROR: el flujo no es supercrítico'),
+      S('Tirante conjugado mayor', 'y₂ = (y₁/2)·(√(1 + 8·Fr₁²) − 1)',
+        `y₂ = (${F(y1)}/2)·(√(1 + 8·${F(Fr)}²) − 1)`, y2, 'm', true),
+      S('Velocidad después', 'V₂ = q / y₂', `V₂ = ${F(q)} / ${F(y2)}`, V2, 'm/s'),
+      S('Froude después', 'Fr₂ = V₂ / √(g·y₂)', `Fr₂ = ${F(V2)} / √(${F(g)}·${F(y2)})`, Fr2, '—'),
+      S('Energía específica después', 'E₂ = y₂ + V₂² / 2g', `E₂ = ${F(y2)} + (${F(V2)})² / (2·${F(g)})`, E2, 'm'),
+      S('Pérdida de energía', 'ΔE = (y₂ − y₁)³ / (4·y₁·y₂)',
+        `ΔE = (${F(y2)} − ${F(y1)})³ / (4·${F(y1)}·${F(y2)})`, dE, 'm', true),
+      S('Eficiencia de disipación', 'η = ΔE / E₁ · 100', `η = ${F(dE)} / ${F(E1)} · 100`, dE / E1 * 100, '%', true),
+      S('Potencia disipada', 'P = ρ·g·Q·ΔE / 1000',
+        `P = ${F(rho)}·${F(g)}·${F(Q)}·${F(dE)} / 1000`, P, 'kW'),
+      S('Longitud mínima del salto', 'Lj = 5·(y₂ − y₁)', `Lj = 5·(${F(y2)} − ${F(y1)})`, 5 * (y2 - y1), 'm'),
+      S('Longitud máxima del salto', 'Lj = 8·(y₂ − y₁)', `Lj = 8·(${F(y2)} − ${F(y1)})`, 8 * (y2 - y1), 'm'),
+      S('Tipo de salto', 'Clasificación según Fr₁', `Fr₁ = ${F(Fr)}`, tipo),
+      S('Control con tirante de cola', 'yTW ≥ y₂ mantiene el salto contenido',
+        `yTW = ${F(yt)} · y₂ = ${F(y2)}`,
+        yt >= y2 - 1e-9 ? 'SALTO CONTENIDO / ESTABLE' : 'SALTO BARRIDO: se desplaza aguas abajo', '', true)
+    ];
+  }
+});
+
+/* ============================================================
+   3. Estado y persistencia
+   ============================================================ */
+const STORE = 'hidraulica.solucionario.v2';
+const THEME_KEY = 'hidraulica.tema';
+
+function defaults(mod) {
+  const o = {};
+  mod.in.forEach(r => { if (!r.g) o[r.k] = r.def; });
+  return o;
+}
+
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(STORE) || '{}') || {}; } catch (e) { saved = {}; }
+
+const state = MODS.map(m => {
+  const base = defaults(m);
+  const prev = saved[m.slug];
+  if (prev && typeof prev === 'object') {
+    Object.keys(base).forEach(k => {
+      if (typeof prev[k] === typeof base[k]) base[k] = prev[k];
+    });
+  }
+  return base;
+});
+
+function persist() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(
+      MODS.reduce((acc, m, i) => { acc[m.slug] = state[i]; return acc; }, {})
+    ));
+  } catch (e) { /* almacenamiento no disponible */ }
+}
+
+function labelOf(mod, k) {
+  const row = mod.in.find(r => r.k === k);
+  return row ? row.name : k;
+}
+
+/* ============================================================
+   4. Interfaz
+   ============================================================ */
+const $ = (sel, root = document) => root.querySelector(sel);
+const tabsEl = $('#tabs');
+const formEl = $('#form');
+const outEl = $('#out');
+const toastEl = $('#toast');
+
+const slugIndex = slug => MODS.findIndex(m => m.slug === slug);
+let cur = Math.max(0, slugIndex((location.hash || '').replace('#', '')));
+
+/* Iconos reutilizables */
+const ICON = {
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/></svg>',
+  csv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7.5 10.5 4.5 4.5 4.5-4.5"/><path d="M4 20h16"/></svg>',
+  print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5"/><rect x="4" y="8" width="16" height="8" rx="2"/><path d="M7 16h10v5H7z"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg>',
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>'
+};
+
+function toast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toastEl.classList.remove('show'), 1800);
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------- Pestañas ---------- */
+function renderTabs() {
+  tabsEl.innerHTML = MODS.map((m, i) => `
+    <button class="tab" role="tab" id="tab-${i}" aria-controls="out"
+      aria-selected="${i === cur}" tabindex="${i === cur ? 0 : -1}">
+      <span>${String(i + 1).padStart(2, '0')}</span>${esc(m.short)}
+    </button>`).join('');
+
+  tabsEl.querySelectorAll('.tab').forEach((b, i) => {
+    b.addEventListener('click', () => select(i));
+    b.addEventListener('keydown', e => {
+      const last = MODS.length - 1;
+      let next = null;
+      if (e.key === 'ArrowRight') next = i === last ? 0 : i + 1;
+      else if (e.key === 'ArrowLeft') next = i === 0 ? last : i - 1;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = last;
+      if (next === null) return;
+      e.preventDefault();
+      select(next);
+      const el = $('#tab-' + next);
+      if (el) el.focus();
+    });
+  });
+}
+
+function select(i) {
+  cur = i;
+  const m = MODS[i];
+  if (location.hash !== '#' + m.slug) {
+    history.replaceState(null, '', '#' + m.slug);
+  }
+  renderTabs();
+  renderForm();
+  solve();
+}
+
+/* ---------- Panel de datos ---------- */
+function renderForm() {
+  const m = MODS[cur];
+  const v = state[cur];
+  let html = `
+    <div class="panel-head">
+      <p class="eyebrow">Datos de entrada</p>
+      <h2>${esc(m.name.replace(/^\d+\.\s*/, ''))}</h2>
+      <p class="lede">${esc(m.intro)}</p>
+    </div>
+    <div class="fields">`;
+
+  m.in.forEach(row => {
+    if (row.g) {
+      html += `<p class="group-t">${esc(row.g)}</p>`;
+      return;
+    }
+    html += `<div class="field">
+      <label for="in-${row.k}">${esc(row.name)}${row.unit && row.unit !== '—' ? `<span class="u">${esc(row.unit)}</span>` : ''}</label>`;
+
+    if (row.options) {
+      html += `<select id="in-${row.k}">${row.options.map(([val, lab]) =>
+        `<option value="${esc(val)}"${val === v[row.k] ? ' selected' : ''}>${esc(lab)}</option>`).join('')}</select>`;
+    } else {
+      html += `<input id="in-${row.k}" type="number" step="any" inputmode="decimal"
+        value="${Number.isFinite(v[row.k]) ? v[row.k] : ''}">`;
+    }
+    html += '</div>';
+  });
+
+  html += '</div>';
+  formEl.innerHTML = html;
+
+  formEl.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', () => {
+      const k = el.id.slice(3);
+      const row = m.in.find(r => r.k === k);
+      if (!row) return;
+      state[cur][k] = row.options ? el.value : (el.value === '' ? NaN : parseFloat(el.value));
+      persist();
+      solve();
+    });
+  });
+}
+
+/* ---------- Diagnóstico automático ---------- */
+function diagnose(mod, v, steps) {
+  const out = [];
+
+  Object.keys(v).forEach(k => {
+    if (typeof v[k] === 'number' && v[k] < 0) {
+      out.push(`El dato «${labelOf(mod, k)}» es negativo: revisa el signo.`);
+    }
+  });
+
+  steps.forEach(s => {
+    if (typeof s.val === 'string' &&
+      /^(ERROR|REVISAR|AJUSTAR|SALTO BARRIDO|ESTRANGULAMIENTO)|no es supercrítico/i.test(s.val)) {
+      out.push(`${s.t}: ${s.val}`);
+    }
+  });
+
+  const re = steps.find(s => s.t.includes('Reynolds'));
+  if (re && typeof re.val === 'number' && re.val > 2000 && re.val < 4000) {
+    out.push('Reynolds en la zona de transición (2000–4000): el factor de fricción es incierto.');
+  }
+
+  const fr = steps.find(s => s.t.startsWith('Número de Froude'));
+  if (fr && typeof fr.val === 'number' && Math.abs(fr.val - 1) < 0.05) {
+    out.push('El flujo está muy cerca del régimen crítico (Fr ≈ 1): los resultados son sensibles a pequeños cambios.');
+  }
+
+  return [...new Set(out)];
+}
+
+/* ---------- Resultados ---------- */
+let last = null;
+
+function notice(title, msg, kind) {
+  const icon = kind === 'error' ? ICON.alert : ICON.info;
+  return `<div class="empty">
+    <div class="empty-ico">${icon}</div>
+    <h3>${esc(title)}</h3>
+    <p>${msg}</p>
+  </div>`;
+}
+
+function stepHtml(s, i) {
+  const isNum = typeof s.val === 'number';
+  return `<li class="step${s.key ? ' key' : ''}">
+    <span class="step-n">${String(i + 1).padStart(2, '0')}</span>
+    <h3>${esc(s.t)}</h3>
+    <p class="formula">${esc(s.fm)}</p>
+    <p class="subst">${esc(s.sub)}</p>
+    <p class="out${isNum ? '' : ' txt'}">${isNum ? '= ' + F(s.val) : F(s.val)}${U(s.u) ? `<span>${esc(U(s.u))}</span>` : ''}</p>
+  </li>`;
+}
+
+function solve() {
+  const m = MODS[cur];
+  const v = state[cur];
+  const faltan = Object.keys(v).filter(k => typeof v[k] === 'number' && !isFinite(v[k]));
+
+  if (faltan.length) {
+    last = null;
+    outEl.innerHTML = notice('Datos incompletos',
+      'Falta un valor numérico en: <strong>' + faltan.map(k => esc(labelOf(m, k))).join(', ') + '</strong>.');
+    return;
+  }
+
+  let steps;
+  try {
+    steps = m.solve(v);
+  } catch (err) {
+    last = null;
+    outEl.innerHTML = notice('No se puede resolver', esc(err.message), 'error');
+    return;
+  }
+
+  last = { mod: m, v, steps };
+  const kpis = steps.filter(s => s.key);
+  const warnings = diagnose(m, v, steps);
+  const fecha = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const datos = m.in.filter(r => !r.g).map(r => `
+    <tr><th>${esc(r.name)}</th><td>${esc(v[r.k])}${r.unit && r.unit !== '—' ? ' ' + esc(r.unit) : ''}</td></tr>`).join('');
+
+  outEl.innerHTML = `
+    <div class="result-head">
+      <div>
+        <p class="eyebrow">Solucionario</p>
+        <h2>${esc(m.name.replace(/^\d+\.\s*/, ''))}</h2>
+        <p class="lede">${esc(m.intro)}</p>
+      </div>
+      <div class="tools">
+        <button class="btn" id="copy-btn" title="Copiar el desarrollo completo">${ICON.copy}<span>Copiar</span></button>
+        <button class="btn" id="csv-btn" title="Descargar los pasos en CSV">${ICON.csv}<span>CSV</span></button>
+        <button class="btn" id="print-btn" title="Imprimir o guardar como PDF">${ICON.print}<span>Imprimir</span></button>
+      </div>
+    </div>
+
+    <div class="print-only print-meta">${esc(m.name)} · ${esc(fecha)} · Sistema Internacional · 5 decimales</div>
+    <table class="print-only print-data">${datos}</table>
+
+    ${kpis.length ? `<div class="kpis">${kpis.map(s => `
+      <div class="kpi">
+        <span class="kpi-l">${esc(s.t)}</span>
+        <span class="kpi-v">${F(s.val)}${U(s.u) ? ` <i>${esc(U(s.u))}</i>` : ''}</span>
+      </div>`).join('')}</div>` : ''}
+
+    ${warnings.length ? `<div class="diag"><strong>Revisa estos puntos</strong><ul>${warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}
+
+    <ol class="steps">${steps.map(stepHtml).join('')}</ol>
+
+    ${m.theory ? `<details class="theory"><summary>Hipótesis, criterios y referencias</summary><p>${esc(m.theory)}</p></details>` : ''}
+  `;
+
+  $('#copy-btn').addEventListener('click', copiar);
+  $('#csv-btn').addEventListener('click', descargarCSV);
+  $('#print-btn').addEventListener('click', () => window.print());
+}
+
+/* ---------- Exportaciones ---------- */
+function textoPlano() {
+  if (!last) return '';
+  const { mod, v, steps } = last;
+  const fecha = new Date().toLocaleString('es-ES');
+  const datos = mod.in.filter(r => !r.g)
+    .map(r => `  ${r.name}: ${v[r.k]}${r.unit && r.unit !== '—' ? ' ' + r.unit : ''}`)
+    .join('\n');
+
+  const cuerpo = steps.map((s, i) =>
+    `${String(i + 1).padStart(2, '0')}. ${s.t}\n    ${s.fm}\n    ${s.sub}\n    = ${F(s.val)}${U(s.u) ? ' ' + U(s.u) : ''}`
+  ).join('\n\n');
+
+  return `${mod.name}\nSolucionario de hidráulica · ${fecha}\n\nDATOS\n${datos}\n\nDESARROLLO\n${cuerpo}\n`;
+}
+
+async function copiar() {
+  const txt = textoPlano();
+  if (!txt) return;
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast('Desarrollo copiado');
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Desarrollo copiado'); }
+    catch (err) { toast('No se pudo copiar'); }
+    ta.remove();
+  }
+}
+
+function descargarCSV() {
+  if (!last) return;
+  const { mod, v, steps } = last;
+  const q = s => `"${String(s).replace(/"/g, '""')}"`;
+  const filas = [['Nº', 'Paso', 'Fórmula', 'Sustitución', 'Resultado', 'Unidad']
+    .map(q).join(';')];
+  steps.forEach((s, i) => {
+    filas.push([i + 1, s.t, s.fm, s.sub, F(s.val), U(s.u)].map(q).join(';'));
+  });
+  const datos = ['', q('DATOS'), ...mod.in.filter(r => !r.g).map(r => [q(r.name), q(v[r.k]), q(r.unit)].join(';'))];
+  const nombre = 'solucionario-' + mod.slug + '.csv';
+  const blob = new Blob(['\uFEFF' + filas.concat(datos).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('CSV descargado');
+}
+
+/* ---------- Tema ---------- */
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  try { localStorage.setItem(THEME_KEY, t); } catch (e) { /* ignorar */ }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t === 'dark' ? '#0A161C' : '#0E6A8A');
+}
+
+$('#theme-btn').addEventListener('click', () => {
+  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+});
+
+/* ---------- Restablecer ---------- */
+$('#reset-btn').addEventListener('click', () => {
+  state[cur] = defaults(MODS[cur]);
+  persist();
+  renderForm();
+  solve();
+  toast('Valores de ejemplo restaurados');
+});
+
+/* ---------- Arranque ---------- */
+renderTabs();
+renderForm();
+solve();
+
+window.addEventListener('hashchange', () => {
+  const i = slugIndex((location.hash || '').replace('#', ''));
+  if (i >= 0 && i !== cur) select(i);
+});
+</script>
+</body>
+</html>
