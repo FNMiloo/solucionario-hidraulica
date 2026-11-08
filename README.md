@@ -1,4 +1,4 @@
-# Solucionario de hidráulica
+# Calculadora hidráulica
 
 Aplicación web de una sola página para resolver problemas de hidráulica con el desarrollo completo paso a paso: fórmulas, sustitución numérica y resultado con unidades.
 
