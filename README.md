@@ -4,6 +4,8 @@ Aplicación web de una sola página para resolver problemas de hidráulica con e
 
 No necesita instalación, servidor ni conexión a internet. Abre `index.html` y listo.
 
+**Demo en línea:** https://fnmiloo.github.io/solucionario-hidraulica/
+
 ---
 
 ## Contenido
